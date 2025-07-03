@@ -1,0 +1,2324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Architecture - Google Cloud Configuration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background-color: #FFFFFF;
+            color: #6f038f;
+            line-height: 1.5;
+        }
+
+        .slide-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(111, 3, 143, 0.05) 0%, rgba(111, 3, 143, 0.1) 100%);
+            position: relative;
+        }
+
+        .slide-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(111,3,143,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)" /></svg>') repeat;
+            opacity: 0.3;
+            z-index: -1;
+        }
+
+        .slide {
+            width: 90%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(111, 3, 143, 0.15);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .slide-header {
+            background: #6f038f;
+            color: white;
+            padding: 60px 80px;
+            text-align: center;
+            position: relative;
+        }
+
+        .slide-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+            background-size: 40px 40px;
+        }
+
+        .upy-logo {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 120px;
+            height: auto;
+            opacity: 0.9;
+        }
+
+        .slide-header h1 {
+            font-size: 3.5em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .slide-header .subtitle {
+            font-size: 1.8em;
+            margin-bottom: 30px;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+        }
+
+        .slide-header .author {
+            font-size: 1.1em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .quadrimester-bar {
+            background: linear-gradient(90deg, #ff9a00 0%, #ffb347 100%);
+            height: 8px;
+            width: 100%;
+            margin-top: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .quadrimester-info {
+            background: #ff9a00;
+            color: white;
+            padding: 15px 30px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .slide-content {
+            padding: 60px 80px;
+            background: white;
+        }
+
+        .content-title {
+            color: #6f038f;
+            font-size: 2.2em;
+            font-weight: 600;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #ff9a00;
+            padding-bottom: 15px;
+        }
+
+        .content-description {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .content-description code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #6f038f;
+        }
+
+        .test-steps {
+            margin-top: 40px;
+        }
+
+        .step-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+
+        .step-title {
+            background: #6f038f;
+            color: white;
+            padding: 15px 25px;
+            margin: 0;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .step-command {
+            padding: 20px 25px;
+        }
+
+        .command-header {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .copy-btn-small {
+            background: #ff9a00;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn-small:hover {
+            background: #e68a00;
+            transform: translateY(-1px);
+        }
+
+        .step-command pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-x: auto;
+            border: 1px solid #4a5568;
+        }
+
+        .output-section {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .output-header {
+            background: #28a745;
+            color: white;
+            padding: 15px 25px;
+        }
+
+        .output-title {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .output-content {
+            padding: 20px 25px;
+        }
+
+        .output-content pre {
+            background: #f8f9fa;
+            color: #28a745;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-x: auto;
+            border: 1px solid #d4edda;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .info-box strong {
+            color: #0066cc;
+        }
+
+        .info-box code {
+            background: #d4edda;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            color: #155724;
+        }
+
+        .info-box.warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .info-box.warning strong {
+            color: #856404;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        }
+
+        .form-group {
+            margin-bottom: 30px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #6f038f;
+            font-size: 1.1em;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #6f038f;
+            box-shadow: 0 0 0 4px rgba(111, 3, 143, 0.1);
+        }
+
+        .commands-section {
+            background: #2d3748;
+            color: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+
+        .commands-header {
+            background: linear-gradient(135deg, #6f038f 0%, #8a0ba3 100%);
+            padding: 25px 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .commands-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: white;
+        }
+
+        .copy-btn {
+            background: #ff9a00;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .copy-btn:hover {
+            background: #e68a00;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+
+        .commands-content {
+            padding: 35px;
+        }
+
+        .commands-content pre {
+            background: #1a202c;
+            padding: 30px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 1em;
+            line-height: 1.8;
+            border: 1px solid #4a5568;
+            margin: 0;
+            color: #e2e8f0;
+        }
+
+        .placeholder {
+            color: #a0aec0;
+            font-style: italic;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #6f038f;
+            font-size: 0.9em;
+            border-top: 1px solid #e9ecef;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .slide {
+                width: 95%;
+                margin: 20px;
+            }
+            
+            .slide-header {
+                padding: 40px 30px;
+            }
+            
+            .slide-header h1 {
+                font-size: 2.5em;
+            }
+            
+            .slide-header .subtitle {
+                font-size: 1.4em;
+            }
+            
+            .slide-content {
+                padding: 40px 30px;
+            }
+            
+            .content-title {
+                font-size: 1.8em;
+            }
+            
+            .form-section {
+                padding: 30px 20px;
+            }
+            
+            .commands-header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .command-header {
+                justify-content: center;
+                margin-bottom: 15px;
+            }
+            
+            .upy-logo {
+                width: 80px;
+                top: 20px;
+                left: 20px;
+            }
+
+            .step-item {
+                margin-bottom: 20px;
+            }
+
+            .step-title {
+                padding: 12px 20px;
+                font-size: 1em;
+            }
+
+            .step-command {
+                padding: 15px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="slide">
+            <div class="slide-header">
+                <!-- UPY Logo -->
+                <img src="UPYband.png" alt="UPY Logo" class="upy-logo">
+                
+                <h1>Server Architecture</h1>
+                <div class="subtitle">Google Cloud Configuration</div>
+                <div class="author">M. Sc. Jorge J. Pedrozo Romero<br><em>Data Engineering</em></div>
+                <div class="quadrimester-bar"></div>
+            </div>
+            
+            <div class="quadrimester-info">
+                5° cuatrimestre • Mayo - Agosto (2025)
+            </div>
+            
+            <div class="slide-content">
+                <h2 class="content-title">Crear estructura básica de directorios</h2>
+                <p class="content-description">
+                    Completa los campos con tu información para generar los comandos personalizados de gsutil.
+                </p>
+                
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="apellido">Tu apellido:</label>
+                        <input type="text" id="apellido" placeholder="Ejemplo: garcia" oninput="updateCommands()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="nombre">Tu nombre:</label>
+                        <input type="text" id="nombre" placeholder="Ejemplo: juan" oninput="updateCommands()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="iniciales">Tus iniciales:</label>
+                        <input type="text" id="iniciales" placeholder="Ejemplo: jg" oninput="updateCommands()">
+                    </div>
+                </div>
+                
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Comandos gsutil personalizados</span>
+                        <button class="copy-btn" onclick="copyCommand('cmdAll')">Copiar comandos</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="cmdAll"><span class="placeholder">Completa los campos arriba para ver todos los comandos</span></pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Crear tu archivo .env</h2>
+                <p class="content-description">
+                    Crea un archivo <code>.env</code> en tu directorio de proyecto con tu configuración personalizada. Para hacerlo, en la carpeta de tu servidor <code>file-server-project</code> escribe <code>nano .env</code> y pega los comandos que aparecen a continuación. Guarda con <code>Ctrl</code> + <code>o</code>, verifica que el nombre esté bien, dale <code>enter</code> y finalmente oprime <code>Ctrl</code> + <code>x</code>
+                </p>
+                
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Archivo .env personalizado</span>
+                        <button class="copy-btn" onclick="copyCommand('envFile')">Copiar .env</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="envFile"><span class="placeholder">Completa los campos arriba para ver el archivo .env</span></pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Test de conectividad</h2>
+                <p class="content-description">
+                    Desde <code>/home/[USER]</code> ejecuta los siguientes comandos:
+                </p>
+
+                <div class="test-steps">
+                    <div class="step-item">
+                        <h3 class="step-title">1. Crear archivo de prueba</h3>
+                        <div class="step-command">
+                            <div class="command-header">
+                                <button class="copy-btn-small" onclick="copyCommand('cmd1')">Copiar</button>
+                            </div>
+                            <pre id="cmd1">echo "Hello World - File Server Test" > test.txt</pre>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <h3 class="step-title">2. Verificar que se creó</h3>
+                        <div class="step-command">
+                            <div class="command-header">
+                                <button class="copy-btn-small" onclick="copyCommand('cmd2')">Copiar</button>
+                            </div>
+                            <pre id="cmd2">ls -la test.txt</pre>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <h3 class="step-title">3. Subir a tu bucket</h3>
+                        <div class="step-command">
+                            <div class="command-header">
+                                <button class="copy-btn-small" onclick="copyCommand('cmd3')">Copiar</button>
+                            </div>
+                            <pre id="cmd3"><span class="placeholder">Completa los campos arriba para ver el comando personalizado</span></pre>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <h3 class="step-title">4. Verificar que se subió</h3>
+                        <div class="step-command">
+                            <div class="command-header">
+                                <button class="copy-btn-small" onclick="copyCommand('cmd4')">Copiar</button>
+                            </div>
+                            <pre id="cmd4"><span class="placeholder">Completa los campos arriba para ver el comando personalizado</span></pre>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <h3 class="step-title">5. Descargar con otro nombre</h3>
+                        <div class="step-command">
+                            <div class="command-header">
+                                <button class="copy-btn-small" onclick="copyCommand('cmd5')">Copiar</button>
+                            </div>
+                            <pre id="cmd5"><span class="placeholder">Completa los campos arriba para ver el comando personalizado</span></pre>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <h3 class="step-title">6. Verificar contenido</h3>
+                        <div class="step-command">
+                            <div class="command-header">
+                                <button class="copy-btn-small" onclick="copyCommand('cmd6')">Copiar</button>
+                            </div>
+                            <pre id="cmd6">cat downloaded-test.txt</pre>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <h3 class="step-title">7. Limpiar archivos locales y del bucket</h3>
+                        <div class="step-command">
+                            <div class="command-header">
+                                <button class="copy-btn-small" onclick="copyCommand('cmd7')">Copiar</button>
+                            </div>
+                            <pre id="cmd7"><span class="placeholder">Completa los campos arriba para ver los comandos personalizados</span></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Verificar estructura</h2>
+                <p class="content-description">
+                    Corre el siguiente comando:
+                </p>
+
+                <div class="step-item">
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdVerify')">Copiar</button>
+                        </div>
+                        <pre id="cmdVerify"><span class="placeholder">Completa los campos arriba para ver el comando personalizado</span></pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Deberías ver lo siguiente:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Salida esperada</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedOutput"><span class="placeholder">Completa los campos arriba para ver la salida esperada</span></pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Configurar el entorno de desarrollo</h2>
+                
+                <div class="step-item">
+                    <h3 class="step-title">Asegúrate de estar en tu directorio de proyecto</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdCd')">Copiar</button>
+                        </div>
+                        <pre id="cmdCd">cd /home/[USER]/file-server-project</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Crear entorno virtual de Python</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdVenv')">Copiar</button>
+                        </div>
+                        <pre id="cmdVenv">python3 -m venv venv</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Activar el entorno virtual</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdActivate')">Copiar</button>
+                        </div>
+                        <pre id="cmdActivate">source venv/bin/activate</pre>
+                    </div>
+                </div>
+
+                <div class="info-box" style="margin: 30px 0; padding: 20px; background: #e7f3ff; border-left: 4px solid #0066cc; border-radius: 8px;">
+                    <strong>💡 Nota:</strong> En tu consola, el prompt debería cambiar a algo como: <code>(venv) [USER]@cloudshell</code>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Instala las dependencias necesarias</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdPip')">Copiar</button>
+                        </div>
+                        <pre id="cmdPip">pip install flask google-cloud-storage python-dotenv werkzeug uuid</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Crear la estructura del proyecto</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdMkdir')">Copiar</button>
+                        </div>
+                        <pre id="cmdMkdir">mkdir app templates static tests</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Crear archivos principales</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdTouch')">Copiar</button>
+                        </div>
+                        <pre id="cmdTouch">touch app.py 
+touch requirements.txt 
+touch README.md</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Ver la estructura</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdLs')">Copiar</button>
+                        </div>
+                        <pre id="cmdLs">ls -la</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Debería salirte algo así:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Salida esperada del directorio</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedStructure">drwxrwxr-x 7 freddy0289 freddy0289 4096 Jul  3 00:08 .
+drwxr-x--- 9 freddy0289 freddy0289 4096 Jul  3 00:07 ..
+drwxrwxr-x 2 freddy0289 freddy0289 4096 Jul  3 00:08 app
+-rw-rw-r-- 1 freddy0289 freddy0289    0 Jul  3 00:08 app.py
+-rw-rw-r-- 1 freddy0289 freddy0289  242 Jul  2 23:56 .env
+-rw-rw-r-- 1 freddy0289 freddy0289    0 Jul  3 00:08 README.md
+-rw-rw-r-- 1 freddy0289 freddy0289    0 Jul  3 00:08 requirements.txt
+drwxrwxr-x 2 freddy0289 freddy0289 4096 Jul  3 00:08 static
+drwxrwxr-x 2 freddy0289 freddy0289 4096 Jul  3 00:08 templates
+drwxrwxr-x 2 freddy0289 freddy0289 4096 Jul  3 00:08 tests
+drwxrwxr-x 5 freddy0289 freddy0289 4096 Jul  3 00:06 venv</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Editar el archivo requirements.txt</h2>
+                <p class="content-description">
+                    En el archivo <code>requirements.txt</code> pega la siguiente información:
+                </p>
+
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Contenido del archivo requirements.txt</span>
+                        <button class="copy-btn" onclick="copyCommand('requirementsContent')">Copiar contenido</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="requirementsContent">Flask==2.3.3 
+google-cloud-storage==2.10.0 
+python-dotenv==1.0.0 
+Werkzeug==2.3.7 
+uuid 
+gunicorn==21.2.0</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Crear el archivo app.py básico</h2>
+                <p class="content-description">
+                    Copia y pega el siguiente código:
+                </p>
+
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Código del archivo app.py</span>
+                        <button class="copy-btn" onclick="copyCommand('appPyContent')">Copiar código</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="appPyContent">from flask import Flask, request, jsonify, send_file
+from google.cloud import storage
+from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+import os
+import uuid
+from datetime import datetime
+import tempfile
+
+# Cargar variables de entorno
+load_dotenv()
+
+app = Flask(__name__)
+
+# Configuración
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+BUCKET_NAME = os.getenv('GOOGLE_CLOUD_BUCKET_NAME')
+PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
+
+# Inicializar cliente de Google Cloud Storage
+storage_client = storage.Client(project=PROJECT_ID)
+bucket = storage_client.bucket(BUCKET_NAME)
+
+# Tipos de archivos permitidos
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'csv', 'xlsx', 'docx'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/')
+def index():
+    return jsonify({
+        'message': 'File Server API',
+        'version': '1.0',
+        'endpoints': {
+            'upload': 'POST /api/files/upload',
+            'download': 'GET /api/files/&lt;file_id&gt;',
+            'list': 'GET /api/files',
+            'delete': 'DELETE /api/files/&lt;file_id&gt;'
+        }
+    })
+
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), debug=True)</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Probar que todo funciona</h2>
+                
+                <div class="step-item">
+                    <h3 class="step-title">Instalar dependencias desde requirements.txt</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdInstall')">Copiar</button>
+                        </div>
+                        <pre id="cmdInstall">pip install -r requirements.txt</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Ejecutar la aplicación</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdRun')">Copiar</button>
+                        </div>
+                        <pre id="cmdRun">python app.py</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Deberías ver algo como:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Salida esperada del servidor</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedServerOutput">* Running on all addresses (0.0.0.0)
+* Running on http://127.0.0.1:8080
+* Running on http://[tu-ip]:8080</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Probar los endpoints básicos</h2>
+                
+                <div class="info-box" style="margin: 30px 0; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 8px;">
+                    <strong>⚠️ Importante:</strong> Abre una nueva terminal (deja Flask corriendo) y ejecuta:
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Probar el endpoint principal</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdCurlIndex')">Copiar</button>
+                        </div>
+                        <pre id="cmdCurlIndex">curl http://localhost:8080/</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Probar el health check</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdCurlHealth')">Copiar</button>
+                        </div>
+                        <pre id="cmdCurlHealth">curl http://localhost:8080/health</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Deberías ver algo como:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Respuesta JSON esperada</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedJsonOutput">{
+  "message": "File Server API",
+  "version": "1.0",
+  "endpoints": {
+    "upload": "POST /api/files/upload",
+    "download": "GET /api/files/&lt;file_id&gt;",
+    "list": "GET /api/files",
+    "delete": "DELETE /api/files/&lt;file_id&gt;"
+  }
+}</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Implementar el endpoint de Upload</h2>
+                <p class="content-description">
+                    Ahora vamos a agregar la funcionalidad real. Detén Flask (<code>Ctrl</code>+<code>C</code>) y actualiza el código:
+                </p>
+
+                <div class="step-item">
+                    <h3 class="step-title">Hacer backup del archivo actual</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdBackup')">Copiar</button>
+                        </div>
+                        <pre id="cmdBackup">cp app.py app.py.backup</pre>
+                    </div>
+                </div>
+
+                <h3 class="content-title" style="font-size: 1.5em; margin: 40px 0 20px 0;">Crear la versión actualizada</h3>
+
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Código del endpoint de upload</span>
+                        <button class="copy-btn" onclick="copyCommand('uploadEndpoint')">Copiar código</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="uploadEndpoint">@app.route('/api/files/upload', methods=['POST'])
+def upload_file():
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'File type not allowed'}), 400
+
+        # Generar ID único y nombre seguro
+        file_id = str(uuid.uuid4())
+        secure_name = secure_filename(file.filename)
+        blob_name = f"uploads/{file_id}_{secure_name}"
+
+        # Subir a Google Cloud Storage
+        blob = bucket.blob(blob_name)
+        blob.upload_from_file(file, content_type=file.content_type)
+
+        # Metadata del archivo
+        file_info = {
+            'file_id': file_id,
+            'original_name': secure_name,
+            'blob_name': blob_name,
+            'size': blob.size,
+            'content_type': file.content_type,
+            'upload_date': datetime.now().isoformat()
+        }
+       
+        return jsonify({
+            'message': 'File uploaded successfully',
+            'file': file_info
+        }), 201      
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Ejecutar el servidor actualizado</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdRunUpdated')">Copiar</button>
+                        </div>
+                        <pre id="cmdRunUpdated">python app.py</pre>
+                    </div>
+                </div>
+
+                <h3 class="content-title" style="font-size: 1.5em; margin: 40px 0 20px 0;">Probar el upload, en otra terminal:</h3>
+
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Comandos para probar el upload</span>
+                        <button class="copy-btn" onclick="copyCommand('testUpload')">Copiar comandos</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="testUpload">echo "Hello World - Test upload" > test-upload.txt
+curl -X POST -F "file=@test-upload.txt" http://localhost:8080/api/files/upload</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Deberías ver algo así:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Respuesta del upload exitoso</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedUploadOutput">{
+  "file": {
+    "blob_name": "uploads/051d2c46-d0c9-4502-8cff-1d32f1a46766_test-upload.txt",
+    "content_type": "text/plain",
+    "file_id": "051d2c46-d0c9-4502-8cff-1d32f1a46766",
+    "original_name": "test-upload.txt",
+    "size": 26,
+    "upload_date": "2025-07-03T00:53:55.653894"
+  },
+  "message": "File uploaded successfully"
+}</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Implementar los endpoints restantes</h2>
+                <p class="content-description">
+                    Detén Flask y agrega más funcionalidades (no se te olvide de actualizar el backup):
+                </p>
+
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Código de los endpoints restantes</span>
+                        <button class="copy-btn" onclick="copyCommand('remainingEndpoints')">Copiar código</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="remainingEndpoints">@app.route('/api/files/&lt;file_id&gt;', methods=['GET'])
+def download_file(file_id):
+    try:
+        # Buscar el archivo en el bucket
+        blobs = bucket.list_blobs(prefix=f"uploads/{file_id}_")
+        blob = None
+        for b in blobs:
+            blob = b
+            break  
+
+        if not blob:
+            return jsonify({'error': 'File not found'}), 404
+       
+        # Descargar a archivo temporal
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            blob.download_to_filename(temp_file.name)            
+
+            # Obtener nombre original del archivo
+            original_name = blob.name.split('_', 1)[1] if '_' in blob.name else blob.name
+           
+            return send_file(
+                temp_file.name,
+                as_attachment=True,
+                download_name=original_name,
+                mimetype=blob.content_type
+            )
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/files', methods=['GET'])
+def list_files():
+    try:
+        # Parámetros de paginación
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))        
+
+        # Listar archivos del bucket
+        blobs = list(bucket.list_blobs(prefix="uploads/"))
+        
+        # Crear lista de archivos con metadata
+        files = []
+        for blob in blobs:
+            if blob.name.endswith('.keep'):
+                continue                
+
+            # Extraer file_id del nombre del blob
+            blob_parts = blob.name.split('/')[-1].split('_', 1)
+            file_id = blob_parts[0] if len(blob_parts) > 1 else 'unknown'
+            original_name = blob_parts[1] if len(blob_parts) > 1 else blob.name
+
+            files.append({
+                'file_id': file_id,
+                'original_name': original_name,
+                'size': blob.size,
+                'content_type': blob.content_type,
+                'upload_date': blob.time_created.isoformat() if blob.time_created else None,
+                'download_url': f'/api/files/{file_id}'
+            })
+
+        # Aplicar paginación
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated_files = files[start:end]
+        
+        return jsonify({
+            'files': paginated_files,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': len(files),
+                'pages': (len(files) + per_page - 1) // per_page
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/files/&lt;file_id&gt;', methods=['DELETE'])
+def delete_file(file_id):
+    try:
+        # Buscar el archivo en el bucket
+        blobs = list(bucket.list_blobs(prefix=f"uploads/{file_id}_"))        
+
+        if not blobs:
+            return jsonify({'error': 'File not found'}), 404
+
+        # Eliminar el archivo
+        blob = blobs[0]
+        blob.delete()        
+
+        return jsonify({
+            'message': 'File deleted successfully',
+            'file_id': file_id
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Ejecutar el servidor actualizado</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('cmdRunFinal')">Copiar</button>
+                        </div>
+                        <pre id="cmdRunFinal">python app.py</pre>
+                    </div>
+                </div>
+
+                <h3 class="content-title" style="font-size: 1.5em; margin: 40px 0 20px 0;">Probar todos los endpoints</h3>
+
+                <div class="step-item">
+                    <h3 class="step-title">1. Listar archivos</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testList1')">Copiar</button>
+                        </div>
+                        <pre id="testList1">curl http://localhost:8080/api/files</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">2. Subir otro archivo para probar</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testUpload2')">Copiar</button>
+                        </div>
+                        <pre id="testUpload2">echo "Segundo archivo de prueba" > test-upload-2.txt
+curl -X POST -F "file=@test-upload-2.txt" http://localhost:8080/api/files/upload</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">3. Listar archivos de nuevo (deberías ver 2 archivos)</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testList2')">Copiar</button>
+                        </div>
+                        <pre id="testList2">curl http://localhost:8080/api/files</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">4. Descargar un archivo (usa el file_id que obtienes del listado)</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testDownload')">Copiar</button>
+                        </div>
+                        <pre id="testDownload">curl -O -J http://localhost:8080/api/files/[ID]</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">5. Eliminar un archivo</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testDelete')">Copiar</button>
+                        </div>
+                        <pre id="testDelete">curl -X DELETE http://localhost:8080/api/files/[ID]</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Al final deberías ver algo así:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Respuesta del delete exitoso</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedDeleteOutput">{
+  "file_id": "48c52392-7e32-41c8-a7f5-2513b441e08b",
+  "message": "File deleted successfully"
+}</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Implementar Seguridad y Autenticación</h2>
+
+                <div class="step-item">
+                    <h3 class="step-title">1. Detener Flask en la terminal donde está corriendo (<code>Ctrl</code> + <code>C</code>)</h3>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">2. Verificar que estás en el entorno virtual</h3>
+                    <div class="info-box" style="margin: 20px 0; padding: 20px; background: #e7f3ff; border-left: 4px solid #0066cc; border-radius: 8px;">
+                        <strong>💡 Tu prompt debe mostrar:</strong><br>
+                        <code>(venv) [USER]@...:/home/[USER]/file-server-project$</code><br><br>
+                        <strong>Si NO ves <code>(venv)</code>, actívalo:</strong>
+                        <code>source venv/bin/activate</code>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Instalar la nueva dependencia</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('installLimiter')">Copiar</button>
+                        </div>
+                        <pre id="installLimiter">pip install flask-limiter</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Agregar al requirements.txt</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('addToRequirements')">Copiar</button>
+                        </div>
+                        <pre id="addToRequirements">echo "flask-limiter==3.5.0" >> requirements.txt</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Verificar que se agregó</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('catRequirements')">Copiar</button>
+                        </div>
+                        <pre id="catRequirements">cat requirements.txt</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Actualiza el backup</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('updateBackup')">Copiar</button>
+                        </div>
+                        <pre id="updateBackup">cp app.py app.py.backup</pre>
+                    </div>
+                </div>
+
+                <h3 class="content-title" style="font-size: 1.5em; margin: 40px 0 20px 0;">Actualiza app.py</h3>
+
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Código completo con seguridad y autenticación</span>
+                        <button class="copy-btn" onclick="copyCommand('secureAppCode')">Copiar código</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="secureAppCode">from flask import Flask, request, jsonify, send_file
+from google.cloud import storage
+from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import os
+import uuid
+from datetime import datetime
+import tempfile
+import functools
+
+# Cargar variables de entorno
+load_dotenv()
+
+app = Flask(__name__)
+
+# Configuración
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+BUCKET_NAME = os.getenv('GOOGLE_CLOUD_BUCKET_NAME')
+PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
+
+# Configurar rate limiting
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["100 per hour"]
+)
+
+# Inicializar cliente de Google Cloud Storage
+storage_client = storage.Client(project=PROJECT_ID)
+bucket = storage_client.bucket(BUCKET_NAME)
+
+# Tipos de archivos permitidos
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'csv', 'xlsx', 'docx'}
+
+# API Keys simples (en producción usar base de datos)
+API_KEYS = {
+    'test-key-123': {'name': 'test-user', 'permissions': ['read', 'write', 'delete']},
+    'read-only-456': {'name': 'readonly-user', 'permissions': ['read']}
+}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def require_api_key(permissions=None):
+    def decorator(f):
+        @functools.wraps(f)
+        def decorated_function(*args, **kwargs):
+            api_key = request.headers.get('X-API-Key')
+            if not api_key or api_key not in API_KEYS:
+                return jsonify({'error': 'Invalid or missing API key'}), 401
+            
+            user_permissions = API_KEYS[api_key]['permissions']
+            if permissions and not any(perm in user_permissions for perm in permissions):
+                return jsonify({'error': 'Insufficient permissions'}), 403
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+@app.route('/')
+def index():
+    return jsonify({
+        'message': 'File Server API',
+        'version': '1.0',
+        'endpoints': {
+            'upload': 'POST /api/files/upload',
+            'download': 'GET /api/files/&lt;file_id&gt;',
+            'list': 'GET /api/files',
+            'delete': 'DELETE /api/files/&lt;file_id&gt;'
+        },
+        'authentication': 'Required - Use X-API-Key header'
+    })
+
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+@app.route('/api/files/upload', methods=['POST'])
+@limiter.limit("10 per minute")
+@require_api_key(['write'])
+def upload_file():
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'File type not allowed'}), 400
+        
+        # Generar ID único y nombre seguro
+        file_id = str(uuid.uuid4())
+        secure_name = secure_filename(file.filename)
+        blob_name = f"uploads/{file_id}_{secure_name}"
+        
+        # Subir a Google Cloud Storage
+        blob = bucket.blob(blob_name)
+        blob.upload_from_file(file, content_type=file.content_type)
+        
+        # Metadata del archivo
+        file_info = {
+            'file_id': file_id,
+            'original_name': secure_name,
+            'blob_name': blob_name,
+            'size': blob.size,
+            'content_type': file.content_type,
+            'upload_date': datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            'message': 'File uploaded successfully',
+            'file': file_info
+        }), 201
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/files/&lt;file_id&gt;', methods=['GET'])
+@limiter.limit("20 per minute")
+@require_api_key(['read'])
+def download_file(file_id):
+    try:
+        # Buscar el archivo en el bucket
+        blobs = bucket.list_blobs(prefix=f"uploads/{file_id}_")
+        blob = None
+        for b in blobs:
+            blob = b
+            break
+        
+        if not blob:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Descargar a archivo temporal
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            blob.download_to_filename(temp_file.name)
+            
+            # Obtener nombre original del archivo
+            original_name = blob.name.split('_', 1)[1] if '_' in blob.name else blob.name
+            
+            return send_file(
+                temp_file.name,
+                as_attachment=True,
+                download_name=original_name,
+                mimetype=blob.content_type
+            )
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/files', methods=['GET'])
+@require_api_key(['read'])
+def list_files():
+    try:
+        # Parámetros de paginación
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+        
+        # Listar archivos del bucket
+        blobs = list(bucket.list_blobs(prefix="uploads/"))
+        
+        # Crear lista de archivos con metadata
+        files = []
+        for blob in blobs:
+            if blob.name.endswith('.keep'):
+                continue
+                
+            # Extraer file_id del nombre del blob
+            blob_parts = blob.name.split('/')[-1].split('_', 1)
+            file_id = blob_parts[0] if len(blob_parts) > 1 else 'unknown'
+            original_name = blob_parts[1] if len(blob_parts) > 1 else blob.name
+            
+            files.append({
+                'file_id': file_id,
+                'original_name': original_name,
+                'size': blob.size,
+                'content_type': blob.content_type,
+                'upload_date': blob.time_created.isoformat() if blob.time_created else None,
+                'download_url': f'/api/files/{file_id}'
+            })
+        
+        # Aplicar paginación
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated_files = files[start:end]
+        
+        return jsonify({
+            'files': paginated_files,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': len(files),
+                'pages': (len(files) + per_page - 1) // per_page
+            }
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/files/&lt;file_id&gt;', methods=['DELETE'])
+@limiter.limit("5 per minute")
+@require_api_key(['delete'])
+def delete_file(file_id):
+    try:
+        # Buscar el archivo en el bucket
+        blobs = list(bucket.list_blobs(prefix=f"uploads/{file_id}_"))
+        
+        if not blobs:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Eliminar el archivo
+        blob = blobs[0]
+        blob.delete()
+        
+        return jsonify({
+            'message': 'File deleted successfully',
+            'file_id': file_id
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)), debug=True)</pre>
+                    </div>
+                </div>
+
+                <h3 class="content-title" style="font-size: 1.5em; margin: 40px 0 20px 0;">Probar la autenticación</h3>
+
+                <div class="step-item">
+                    <h3 class="step-title">Probar sin autenticación (Esto debería fallar)</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testNoAuth')">Copiar</button>
+                        </div>
+                        <pre id="testNoAuth">curl http://localhost:8080/api/files</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Esto debería funcionar (con API key)</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testWithAuth')">Copiar</button>
+                        </div>
+                        <pre id="testWithAuth">curl -H "X-API-Key: test-key-123" http://localhost:8080/api/files</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Upload con API key</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testUploadAuth')">Copiar</button>
+                        </div>
+                        <pre id="testUploadAuth">curl -H "X-API-Key: test-key-123" -X POST -F "file=@test-upload.txt" http://localhost:8080/api/files/upload</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Documentación del proyecto</h2>
+                <p class="content-description">
+                    Hacer la documentación correspondiente y colocarlo en el <code>README.md</code><br>
+                    (Revisar <a href="https://github.com/resources/articles/software-development/tools-and-techniques-for-effective-code-documentation" target="_blank" style="color: #6f038f;">https://github.com/resources/articles/software-development/tools-and-techniques-for-effective-code-documentation</a>)
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Contenido del archivo README.md</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="readmeContent"># File Server API
+
+A secure REST API for file management using Google Cloud Storage with Flask.
+
+## 📋 Description
+
+This project implements a file server API that allows users to upload, download, list, and delete files stored in Google Cloud Storage. The API includes authentication, rate limiting, and comprehensive security features.
+
+## 🚀 Features
+
+- **File Operations**: Upload, download, list, and delete files
+- **Security**: API key authentication with permission-based access control
+- **Rate Limiting**: Prevents API abuse with configurable limits
+- **Cloud Storage**: Files stored securely in Google Cloud Storage
+- **File Validation**: Type checking and secure filename handling
+- **Pagination**: Efficient file listing with pagination support
+- **Health Monitoring**: Health check endpoint for monitoring
+
+## 🛠️ Technologies Used
+
+- **Backend**: Flask (Python web framework)
+- **Cloud Storage**: Google Cloud Storage
+- **Authentication**: Custom API key system
+- **Rate Limiting**: Flask-Limiter
+- **Environment**: Python virtual environment
+- **Security**: Werkzeug security utilities
+
+## 📦 Installation
+
+### Prerequisites
+
+- Python 3.7+
+- Google Cloud account with Storage API enabled
+- Google Cloud credentials file
+
+### Setup Steps
+
+1. **Clone or create the project directory**
+   ```bash
+   mkdir file-server-project
+   cd file-server-project
+   ```
+
+2. **Create virtual environment**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment variables**
+   Create a `.env` file with:
+   ```
+   GOOGLE_CLOUD_PROJECT_ID=your-project-id
+   GOOGLE_CLOUD_BUCKET_NAME=your-bucket-name
+   GOOGLE_APPLICATION_CREDENTIALS=./fileserver-credentials.json
+   PORT=8080
+   NODE_ENV=development
+   ```
+
+5. **Set up Google Cloud Storage**
+   - Create bucket with required directory structure
+   - Place credentials JSON file in project root
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `GOOGLE_CLOUD_PROJECT_ID` | Your GCP project ID | `file-server-garcia-juan` |
+| `GOOGLE_CLOUD_BUCKET_NAME` | Storage bucket name | `fileserver-garcia-jg` |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to credentials file | `./fileserver-credentials.json` |
+| `PORT` | Server port | `8080` |
+| `NODE_ENV` | Environment mode | `development` |
+
+### API Keys
+
+The system uses simple API key authentication. Default keys:
+
+| API Key | Permissions | Description |
+|---------|-------------|-------------|
+| `test-key-123` | read, write, delete | Full access user |
+| `read-only-456` | read | Read-only user |
+
+> **Note**: In production, store API keys in a secure database with hashing.
+
+## 🚦 Usage
+
+### Starting the Server
+
+```bash
+python app.py
+```
+
+The server will start on `http://localhost:8080`
+
+### API Endpoints
+
+#### Authentication
+All API endpoints (except `/` and `/health`) require authentication via the `X-API-Key` header.
+
+#### Available Endpoints
+
+| Method | Endpoint | Description | Permissions Required |
+|--------|----------|-------------|---------------------|
+| GET | `/` | API information | None |
+| GET | `/health` | Health check | None |
+| POST | `/api/files/upload` | Upload file | write |
+| GET | `/api/files` | List files | read |
+| GET | `/api/files/<file_id>` | Download file | read |
+| DELETE | `/api/files/<file_id>` | Delete file | delete |
+
+### Examples
+
+#### Upload File
+```bash
+curl -H "X-API-Key: test-key-123" \
+     -X POST \
+     -F "file=@example.txt" \
+     http://localhost:8080/api/files/upload
+```
+
+#### List Files
+```bash
+curl -H "X-API-Key: test-key-123" \
+     http://localhost:8080/api/files
+```
+
+#### Download File
+```bash
+curl -H "X-API-Key: test-key-123" \
+     -O -J \
+     http://localhost:8080/api/files/file-id-here
+```
+
+#### Delete File
+```bash
+curl -H "X-API-Key: test-key-123" \
+     -X DELETE \
+     http://localhost:8080/api/files/file-id-here
+```
+
+## 🔒 Security Features
+
+### Rate Limiting
+- **Global**: 100 requests per hour per IP
+- **Upload**: 10 requests per minute
+- **Download**: 20 requests per minute
+- **Delete**: 5 requests per minute
+
+### File Security
+- **Type Validation**: Only allowed file extensions
+- **Size Limit**: 16MB maximum file size
+- **Secure Filenames**: Sanitized using Werkzeug
+- **Unique IDs**: UUID4 for each uploaded file
+
+### Access Control
+- API key authentication required
+- Permission-based authorization (read/write/delete)
+- Proper HTTP status codes (401, 403, 404)
+
+## 📁 Project Structure
+
+```
+file-server-project/
+├── app.py                 # Main application file
+├── requirements.txt       # Python dependencies
+├── .env                  # Environment variables
+├── README.md             # This documentation
+├── fileserver-credentials.json  # GCP credentials
+├── app/                  # Application modules (future)
+├── templates/            # HTML templates (future)
+├── static/              # Static files (future)
+├── tests/               # Test files (future)
+└── venv/                # Virtual environment
+```
+
+## 🧪 Testing
+
+### Basic Health Check
+```bash
+curl http://localhost:8080/health
+```
+
+### Authentication Test
+```bash
+# Should fail (401)
+curl http://localhost:8080/api/files
+
+# Should succeed
+curl -H "X-API-Key: test-key-123" http://localhost:8080/api/files
+```
+
+## 📊 API Response Examples
+
+### Successful Upload
+```json
+{
+  "message": "File uploaded successfully",
+  "file": {
+    "file_id": "550e8400-e29b-41d4-a716-446655440000",
+    "original_name": "example.txt",
+    "size": 1024,
+    "content_type": "text/plain",
+    "upload_date": "2025-07-03T12:00:00.000000"
+  }
+}
+```
+
+### File List Response
+```json
+{
+  "files": [
+    {
+      "file_id": "550e8400-e29b-41d4-a716-446655440000",
+      "original_name": "example.txt",
+      "size": 1024,
+      "content_type": "text/plain",
+      "upload_date": "2025-07-03T12:00:00.000000",
+      "download_url": "/api/files/550e8400-e29b-41d4-a716-446655440000"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 10,
+    "total": 1,
+    "pages": 1
+  }
+}
+```
+
+### Error Response
+```json
+{
+  "error": "Invalid or missing API key"
+}
+```
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+1. **Authentication Errors**
+   - Ensure X-API-Key header is included
+   - Verify API key is valid
+   - Check user permissions for the operation
+
+2. **File Upload Issues**
+   - Check file size (max 16MB)
+   - Verify file type is allowed
+   - Ensure sufficient permissions
+
+3. **Google Cloud Errors**
+   - Verify credentials file exists
+   - Check bucket name and permissions
+   - Ensure Storage API is enabled
+
+4. **Rate Limiting**
+   - Wait for rate limit reset
+   - Implement exponential backoff
+   - Check rate limit headers
+
+## 📈 Future Enhancements
+
+- [ ] Database integration for API key management
+- [ ] JWT token authentication
+- [ ] File versioning system
+- [ ] Batch file operations
+- [ ] File metadata search
+- [ ] WebSocket support for real-time updates
+- [ ] Docker containerization
+- [ ] Automated testing suite
+- [ ] API documentation with Swagger
+- [ ] Monitoring and logging
+
+## 👥 Contributing
+
+1. Fork the project
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
+
+## 📄 License
+
+This project is part of the Data Engineering course at Universidad Politécnica de Yucatán.
+
+## 👤 Author
+
+**M. Sc. Jorge J. Pedrozo Romero**  
+*Data Engineering Course*  
+Universidad Politécnica de Yucatán
+
+---
+
+**Course Information:**
+- Subject: Server Architecture
+- Module: Google Cloud Configuration
+- Semester: 5th Quadrimester
+- Period: May - August 2025</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Configuración para producción</h2>
+                <p class="content-description">
+                    Preparar la aplicación para producción:
+                </p>
+
+                <div class="step-item">
+                    <h3 class="step-title">Crear archivo de configuración de Gunicorn</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('gunicornConfig')">Copiar</button>
+                        </div>
+                        <pre id="gunicornConfig">cat > gunicorn.conf.py << 'EOF'
+bind = "0.0.0.0:8080"
+workers = 2
+worker_class = "sync"
+timeout = 30
+keepalive = 5
+max_requests = 1000
+max_requests_jitter = 100
+EOF</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Crear script de inicio</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('startScript')">Copiar</button>
+                        </div>
+                        <pre id="startScript">cat > start.sh << 'EOF'
+#!/bin/bash
+source venv/bin/activate
+gunicorn --config gunicorn.conf.py app:app
+EOF
+
+chmod +x start.sh</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Crear VM en Compute Engine</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('createVM')">Copiar</button>
+                        </div>
+                        <pre id="createVM">gcloud compute instances create fileserver-vm \
+    --zone=us-central1-a \
+    --machine-type=e2-micro \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud \
+    --boot-disk-size=10GB \
+    --tags=http-server,https-server \
+    --scopes=cloud-platform</pre>
+                    </div>
+                </div>
+
+                <div class="info-box" style="margin: 30px 0; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 8px;">
+                    <strong>💡 Nota:</strong> Ignora el warning sobre el tamaño del disco - 10GB es suficiente para nuestro proyecto.
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Configurar Firewall</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('configFirewall')">Copiar</button>
+                        </div>
+                        <pre id="configFirewall">gcloud compute firewall-rules create allow-fileserver \
+    --allow tcp:8080 \
+    --source-ranges 0.0.0.0/0 \
+    --description "Allow access to file server on port 8080"</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Verificar que la VM se creó</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('listInstances')">Copiar</button>
+                        </div>
+                        <pre id="listInstances">gcloud compute instances list</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Deberías ver algo como:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Salida esperada de las instancias</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedInstancesOutput">NAME           ZONE           MACHINE_TYPE  PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP     STATUS
+fileserver-vm  us-central1-a  e2-micro                   10.x.x.x     xx.xx.xx.xx     RUNNING</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Preparar el proyecto para subir</h2>
+                <p class="content-description">
+                    Comprime tu proyecto (excluyendo archivos innecesarios):
+                </p>
+
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Comprimir proyecto y crear .gitignore</span>
+                        <button class="copy-btn" onclick="copyCommand('prepareProject')">Copiar comandos</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="prepareProject"># Crear archivo .gitignore
+cat > .gitignore << 'EOF'
+venv/
+__pycache__/
+*.pyc
+.env
+fileserver-credentials.json
+*.log
+.DS_Store
+app.py.backup*
+EOF
+
+# Comprimir el proyecto
+tar -czf fileserver.tar.gz \
+    --exclude='venv' \
+    --exclude='__pycache__' \
+    --exclude='*.pyc' \
+    --exclude='*.log' \
+    --exclude='app.py.backup*' \
+    .
+
+# Verificar qué se incluyó
+tar -tzf fileserver.tar.gz</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Subir el proyecto a la VM</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('uploadProject')">Copiar</button>
+                        </div>
+                        <pre id="uploadProject"># Subir el archivo comprimido
+gcloud compute scp fileserver.tar.gz fileserver-vm:~/ --zone=us-central1-a
+
+# Subir las credenciales por separado (más seguro)
+gcloud compute scp fileserver-credentials.json fileserver-vm:~/ --zone=us-central1-a</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Conectar a la VM</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('connectVM')">Copiar</button>
+                        </div>
+                        <pre id="connectVM">gcloud compute ssh fileserver-vm --zone=us-central1-a</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Una vez conectado a la VM, deberías ver un prompt como:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Prompt esperado en la VM</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedPrompt">[USER]@fileserver-vm:~$</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Configuración del file server</h2>
+
+                <div class="step-item">
+                    <h3 class="step-title">Actualizar el sistema e instalar dependencias</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('updateSystem')">Copiar</button>
+                        </div>
+                        <pre id="updateSystem"># Actualizar el sistema
+sudo apt update && sudo apt upgrade -y
+
+# Instalar Python y herramientas necesarias
+sudo apt install -y python3 python3-pip python3-venv git unzip</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Configurar el proyecto</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('configureProject')">Copiar</button>
+                        </div>
+                        <pre id="configureProject"># Extraer el proyecto
+tar -xzf fileserver.tar.gz
+
+# Ver qué se extrajo
+ls -la
+
+# Mover las credenciales al lugar correcto
+mv fileserver-credentials.json ./
+
+# Crear entorno virtual
+python3 -m venv venv
+
+# Activar el entorno virtual
+source venv/bin/activate
+
+# Tu prompt debería cambiar a (venv) [USER]@fileserver-vm:~$
+
+# Instalar dependencias
+pip install -r requirements.txt</pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Configurar variables de entorno</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('configureEnv')">Copiar</button>
+                        </div>
+                        <pre id="configureEnv"><span class="placeholder">Completa los campos arriba para ver los comandos personalizados</span></pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Probar que funciona</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testApp')">Copiar</button>
+                        </div>
+                        <pre id="testApp"># Probar la aplicación
+python app.py</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Deberías ver algo como:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Salida esperada del servidor en producción</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedProductionOutput">* Running on all addresses (0.0.0.0)
+* Running on http://127.0.0.1:8080</pre>
+                    </div>
+                </div>
+
+                <h2 class="content-title" style="margin-top: 60px;">Pruebas de conexión desde internet</h2>
+                
+                <div class="info-box" style="margin: 30px 0; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 8px;">
+                    <strong>⚠️ Importante:</strong> Detener la aplicación con <code>Ctrl</code> + <code>C</code>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Ejecutar en modo producción con Gunicorn</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('runGunicorn')">Copiar</button>
+                        </div>
+                        <pre id="runGunicorn"># Ejecutar con Gunicorn para producción
+./start.sh</pre>
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Deberías ver algo como:
+                </p>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <span class="output-title">Salida esperada de Gunicorn</span>
+                    </div>
+                    <div class="output-content">
+                        <pre id="expectedGunicornOutput">[2024-07-03 02:15:23 +0000] [1234] [INFO] Starting gunicorn 21.2.0
+[2024-07-03 02:15:23 +0000] [1234] [INFO] Listening at: http://0.0.0.0:8080 (1234)
+[2024-07-03 02:15:23 +0000] [1234] [INFO] Using worker: sync
+[2024-07-03 02:15:23 +0000] [1235] [INFO] Booting worker with pid: 1235
+[2024-07-03 02:15:23 +0000] [1236] [INFO] Booting worker with pid: 1236</pre>
+                    </div>
+                </div>
+
+                <h3 class="content-title" style="font-size: 1.5em; margin: 40px 0 20px 0;">Probar desde internet</h3>
+                <p class="content-description">
+                    Ingresa la IP pública de tu VM para personalizar los comandos:
+                </p>
+
+                <div class="form-section" style="margin-bottom: 30px;">
+                    <div class="form-group">
+                        <label for="publicIp">IP pública de tu VM:</label>
+                        <input type="text" id="publicIp" placeholder="Ejemplo: 34.123.45.67" oninput="updateCommands()">
+                    </div>
+                </div>
+
+                <p class="content-description">
+                    Desde tu laptop o desktop (Debería fallar):
+                </p>
+
+                <div class="step-item">
+                    <h3 class="step-title">Test sin autenticación</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testNoAuthInternet')">Copiar</button>
+                        </div>
+                        <pre id="testNoAuthInternet"><span class="placeholder">Completa la IP pública arriba para ver el comando personalizado</span></pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Test con autenticación (Debería funcionar)</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testAuthInternet')">Copiar</button>
+                        </div>
+                        <pre id="testAuthInternet"><span class="placeholder">Completa la IP pública arriba para ver el comando personalizado</span></pre>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <h3 class="step-title">Test de upload</h3>
+                    <div class="step-command">
+                        <div class="command-header">
+                            <button class="copy-btn-small" onclick="copyCommand('testUploadInternet')">Copiar</button>
+                        </div>
+                        <pre id="testUploadInternet"><span class="placeholder">Completa la IP pública arriba para ver los comandos personalizados</span></pre>
+                    </div>
+                </div>
+
+                <h3 class="content-title" style="font-size: 1.5em; margin: 40px 0 20px 0;">Si quieres mantener el servidor corriendo permanentemente</h3>
+                <p class="content-description">
+                    Presiona <code>Ctrl + C</code> para detener Gunicorn, luego:
+                </p>
+
+                <div class="commands-section">
+                    <div class="commands-header">
+                        <span class="commands-title">Configurar servidor permanente con Screen</span>
+                        <button class="copy-btn" onclick="copyCommand('permanentServer')">Copiar comandos</button>
+                    </div>
+                    <div class="commands-content">
+                        <pre id="permanentServer"># Instalar screen para mantener el proceso corriendo
+sudo apt install -y screen
+
+# Ejecutar en background
+screen -S fileserver
+./start.sh
+
+# Presionar Ctrl + A, luego D para "detach" de la sesión
+# El servidor seguirá corriendo aunque cierres la conexión SSH</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                Universidad Politécnica de Yucatán • Data Engineering
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateCommands() {
+            const apellido = document.getElementById('apellido').value.toLowerCase().trim();
+            const nombre = document.getElementById('nombre').value.toLowerCase().trim();
+            const iniciales = document.getElementById('iniciales').value.toLowerCase().trim();
+            const publicIp = document.getElementById('publicIp') ? document.getElementById('publicIp').value.trim() : '';
+            
+            if (apellido && nombre && iniciales) {
+                const bucketName = `fileserver-${apellido}-${iniciales}`;
+                const projectId = `file-server-${apellido}-${nombre}`;
+                
+                // Comandos gsutil
+                const cmd1 = `gsutil cp /dev/null gs://${bucketName}/uploads/.keep`;
+                const cmd2 = `gsutil cp /dev/null gs://${bucketName}/temp/.keep`;
+                const cmd3 = `gsutil cp /dev/null gs://${bucketName}/backups/.keep`;
+                
+                document.getElementById('cmdAll').innerHTML = `${cmd1}\n${cmd2}\n${cmd3}`;
+                
+                // Archivo .env
+                const envContent = `# Google Cloud Configuration
+GOOGLE_CLOUD_PROJECT_ID=${projectId}
+GOOGLE_CLOUD_BUCKET_NAME=${bucketName}
+GOOGLE_APPLICATION_CREDENTIALS=./fileserver-credentials.json
+
+# Server Configuration
+PORT=8080
+NODE_ENV=development`;
+                
+                document.getElementById('envFile').innerHTML = envContent;
+                
+                // Comandos de test personalizados
+                document.getElementById('cmd3').innerHTML = `gsutil cp test.txt gs://${bucketName}/test.txt`;
+                document.getElementById('cmd4').innerHTML = `gsutil ls gs://${bucketName}/`;
+                document.getElementById('cmd5').innerHTML = `gsutil cp gs://${bucketName}/test.txt downloaded-test.txt`;
+                document.getElementById('cmd7').innerHTML = `rm test.txt downloaded-test.txt\ngsutil rm gs://${bucketName}/test.txt`;
+                
+                // Comando de verificación
+                document.getElementById('cmdVerify').innerHTML = `gsutil ls -r gs://${bucketName}/`;
+                
+                // Salida esperada
+                const expectedOutput = `gs://${bucketName}/backups/:
+gs://${bucketName}/backups/.keep
+
+gs://${bucketName}/temp/:
+gs://${bucketName}/temp/.keep
+
+gs://${bucketName}/uploads/:
+gs://${bucketName}/uploads/.keep`;
+                
+                document.getElementById('expectedOutput').innerHTML = expectedOutput;
+
+                // Configurar variables de entorno para producción
+                const envConfig = `# Crear archivo .env
+cat > .env << 'EOF'
+GOOGLE_CLOUD_PROJECT_ID=${projectId}
+GOOGLE_CLOUD_BUCKET_NAME=${bucketName}
+GOOGLE_APPLICATION_CREDENTIALS=./fileserver-credentials.json
+PORT=8080
+NODE_ENV=production
+EOF
+
+# Verificar que todos los archivos están en su lugar
+ls -la`;
+                
+                document.getElementById('configureEnv').innerHTML = envConfig;
+                
+            } else {
+                document.getElementById('cmdAll').innerHTML = '<span class="placeholder">Completa los campos arriba para ver todos los comandos</span>';
+                document.getElementById('envFile').innerHTML = '<span class="placeholder">Completa los campos arriba para ver el archivo .env</span>';
+                document.getElementById('cmd3').innerHTML = '<span class="placeholder">Completa los campos arriba para ver el comando personalizado</span>';
+                document.getElementById('cmd4').innerHTML = '<span class="placeholder">Completa los campos arriba para ver el comando personalizado</span>';
+                document.getElementById('cmd5').innerHTML = '<span class="placeholder">Completa los campos arriba para ver el comando personalizado</span>';
+                document.getElementById('cmd7').innerHTML = '<span class="placeholder">Completa los campos arriba para ver los comandos personalizados</span>';
+                document.getElementById('cmdVerify').innerHTML = '<span class="placeholder">Completa los campos arriba para ver el comando personalizado</span>';
+                document.getElementById('expectedOutput').innerHTML = '<span class="placeholder">Completa los campos arriba para ver la salida esperada</span>';
+                document.getElementById('configureEnv').innerHTML = '<span class="placeholder">Completa los campos arriba para ver los comandos personalizados</span>';
+            }
+
+            // Comandos de internet con IP pública
+            if (publicIp) {
+                document.getElementById('testNoAuthInternet').innerHTML = `curl http://${publicIp}:8080/`;
+                document.getElementById('testAuthInternet').innerHTML = `curl -H "X-API-Key: test-key-123" http://${publicIp}:8080/api/files`;
+                document.getElementById('testUploadInternet').innerHTML = `echo "Hello from internet!" > internet-test.txt
+curl -H "X-API-Key: test-key-123" -X POST -F "file=@internet-test.txt" http://${publicIp}:8080/api/files/upload`;
+            } else {
+                if (document.getElementById('testNoAuthInternet')) {
+                    document.getElementById('testNoAuthInternet').innerHTML = '<span class="placeholder">Completa la IP pública arriba para ver el comando personalizado</span>';
+                    document.getElementById('testAuthInternet').innerHTML = '<span class="placeholder">Completa la IP pública arriba para ver el comando personalizado</span>';
+                    document.getElementById('testUploadInternet').innerHTML = '<span class="placeholder">Completa la IP pública arriba para ver los comandos personalizados</span>';
+                }
+            }
+        }
+
+        function copyCommand(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            if (text.includes('Completa los campos')) {
+                return;
+            }
+
+            // Crear un textarea temporal para copiar el texto
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '¡Copiado!';
+
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                console.error('Error al copiar:', err);
+                alert('Error al copiar. Por favor, selecciona y copia manualmente.');
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
+    </script>
+</body>
+</html>
